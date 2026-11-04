@@ -109,6 +109,10 @@ def test_private_evidence_hosts_are_rejected(
     for url in (
         "https://localhost/x",
         "https://127.0.0.1/x",
+        "https://127.1/x",
+        "https://2130706433/x",
+        "https://intranet/x",
+        "https://[::1]/x",
         "https://10.0.0.5/x",
         "https://evidence.local/x",
         "https://metadata.google.internal/x",

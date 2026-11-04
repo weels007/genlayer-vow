@@ -182,9 +182,10 @@ Invariant: `total_in == total_out + locked_total`, credits included.
 - **Untrusted text** — caller text is normalised, length-capped and stripped of
   angle brackets, and framed in the prompt as facts that must never be read as
   instructions.
-- **No SSRF probe** — `https` only, a real hostname, no IP literal, `localhost`,
-  `*.local`, `*.internal` or cloud metadata names. Without this the committee
-  would be a request-forgery proxy for whoever picks the URL.
+- **No SSRF probe** — `https` only, no IP literal in any spelling (dotted, short,
+  decimal, IPv6), no single-label host, no `localhost` / `*.local` / `*.internal`
+  / cloud metadata names, and an alphabetic TLD is required. Without this the
+  committee would be a request-forgery proxy for whoever picks the URL.
 - **No double post** — caller-scoped `vow_ref`; a replay reverts with
   `[EXPECTED]:duplicate_vow_ref` instead of minting a second vow.
 - **Bounded work** — 5 000 vows, 20 active per promiser, capped strings, at most
@@ -203,6 +204,36 @@ Known limits, stated plainly:
 - Direct-mode tests do not execute external transfers, so the Studio suite is what
   exercises the payout paths end to end (`abandon` and `withdraw_credit` pay out,
   and a resolved `settle` moves the stake).
+
+## Security review
+
+Written against the failure modes GenLayer reviewers reject an Intelligent
+Contract for — the same ones that come back as "the validator does not bind the
+field that decides the money".
+
+| Risk | How Vow answers it |
+|---|---|
+| Stored text steers a later decision without consensus | Only `verdict` is consequential, and only `verdict` is compared. `quote` must be a substring of the fetched page; `reason` and `evidence_digest` are descriptive and no later call reads them. Nothing unverified feeds a payout. |
+| Validator checks the leader's formatting, not the substance | Validators re-run the fetch *and* the judgement independently and must reach the same verdict. A run that cannot verify returns a rejection, and five attempts without agreement leave the money where it is. |
+| Evidence URL handed to the model, never fetched | The contract renders the frozen URL itself inside the non-deterministic block, caps the excerpt, and grounds the citation in exactly that text. |
+| Funds locked forever | `abandon` (promiser, before the deadline) and `void_vow` (anyone, after the 14-day grace or the attempt cap) are always available. `void_vow` refunds the promiser, so it can never be used to take custody. |
+| Any account moves someone else's money | `stake_vow` and `abandon` are promiser-only, `withdraw_credit` is sender-scoped, and the governor is two-step. `settle` and `void_vow` are open by design and pay only the stored promiser or beneficiary. |
+| Caller text manipulates the judge | Promise, criteria and page are framed as untrusted data and the caller text is stripped of angle brackets. Criteria may name what counts as evidence, never what verdict to return, and a criteria that demands a verdict is ignored. |
+| SSRF through the evidence URL | `https` only, no IP literal in any spelling, no single-label host, no metadata aliases, alphabetic TLD required. |
+| Replay and double submit | Caller-scoped `vow_ref`, monotonic ids, and a direct test that proves a replay reverts with `[EXPECTED]:duplicate_vow_ref`. |
+| Integer and division hazards | No floats and no true division anywhere: the bounty and the kept-rate use `//` on bounded integers. |
+| Unpinned toolchain | The header pins `py-genlayer` to the same resolvable revision the rest of this workspace deploys with. |
+| Fund conservation | `total_in == total_out + locked_total` is asserted after every money path, in the direct suite and in the live one. |
+
+Residual risks, unchanged by any of the above:
+
+- The promiser picks the evidence page, so a kept-rate is only as good as the
+  pages they picked. Every vow keeps its URL and quote, so a reader can judge.
+- The reporter fetches only the URL it was given; a public URL that *redirects* to
+  a private one is a property of the validator's HTTP client, not of this code.
+- A model that answers consistently badly makes the settlement undetermined
+  rather than wrong, and the attempt cap plus the grace window keep the stake
+  recoverable.
 
 ## Built from the GenLayer docs
 
