@@ -66,9 +66,11 @@ MIN_QUOTE_CHARS = 20
 MAX_QUOTE_CHARS = 300
 MAX_REASON_CHARS = 400
 
-MIN_DEADLINE_DAYS = 1
-MAX_DEADLINE_DAYS = 365
-SECONDS_PER_DAY = 86400
+# The deadline is expressed in seconds, so a promise can be settled the same day
+# it was made — a one-hour commitment, a release window, a demo — while the upper
+# bound keeps the contract's clock arithmetic comfortably bounded.
+MIN_DEADLINE_SECONDS = 60
+MAX_DEADLINE_SECONDS = 365 * 86400
 
 # A vow that the committee cannot resolve may be settled again, but only a few
 # times: each attempt costs a full fetch-and-judge round on every validator.
@@ -566,7 +568,7 @@ class Vow(gl.Contract):
         promise: str,
         evidence_url: str,
         criteria: str,
-        deadline_days: int,
+        deadline_seconds: int,
         beneficiary: Address,
         vow_ref: str,
     ) -> str:
@@ -593,8 +595,8 @@ class Vow(gl.Contract):
 
         clean_criteria = _sanitize(criteria, MAX_CRITERIA_CHARS)
 
-        days = int(deadline_days)
-        if days < MIN_DEADLINE_DAYS or days > MAX_DEADLINE_DAYS:
+        deadline = int(deadline_seconds)
+        if deadline < MIN_DEADLINE_SECONDS or deadline > MAX_DEADLINE_SECONDS:
             raise gl.vm.UserError(ERROR_EXPECTED + ":invalid_deadline")
 
         sender = gl.message.sender_address
@@ -631,7 +633,7 @@ class Vow(gl.Contract):
             criteria=clean_criteria,
             stake=u256(0),
             created_ts=u256(now),
-            deadline_ts=u256(now + days * SECONDS_PER_DAY),
+            deadline_ts=u256(now + deadline),
             status=STATUS_ACTIVE,
             verdict="",
             quote="",
@@ -1063,8 +1065,8 @@ Decision rules:
             "max_criteria_chars": MAX_CRITERIA_CHARS,
             "max_evidence_chars": MAX_EVIDENCE_CHARS,
             "max_vow_ref_chars": MAX_VOW_REF_CHARS,
-            "min_deadline_days": MIN_DEADLINE_DAYS,
-            "max_deadline_days": MAX_DEADLINE_DAYS,
+            "min_deadline_seconds": MIN_DEADLINE_SECONDS,
+            "max_deadline_seconds": MAX_DEADLINE_SECONDS,
             "max_settlement_attempts": MAX_SETTLEMENT_ATTEMPTS,
             "void_grace_seconds": VOID_GRACE_SECONDS,
             "settle_bounty_bps": SETTLE_BOUNTY_BPS,

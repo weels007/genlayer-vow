@@ -1,22 +1,30 @@
-"""Deploy Vow once and print the address it landed on.
+"""Deploy Vow once and record the address in deployment.json.
 
-    GENLAYER_PRIVATE_KEY=0x... python scripts/deploy.py
+    python scripts/deploy.py            # deploy only when the source changed
+    python scripts/deploy.py --force    # redeploy and replace the address
 
-The key is read from the environment and never written anywhere: a contract
-address is public, a private key is not. `genlayer_py`, the client used here,
-is the same one the rest of this workspace deploys with.
+The tester1 wallet comes from tests/ or from VOW_TESTER1_KEYSTORE +
+VOW_TESTER1_PASSWORD, the same pair the integration suite uses, so one set of
+secrets covers both workflows. Nothing secret is written: `deployment.json`
+holds a public contract address and the revision it was built from.
 """
 
+import argparse
 import hashlib
-import os
+import json
 import re
+import sys
 from pathlib import Path
 
-from eth_account import Account
 from genlayer_py import create_client, studionet
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from wallet import load_account  # noqa: E402
+
 CONTRACT_PATH = ROOT / "contracts" / "Vow.py"
+DEPLOYMENT_PATH = ROOT / "deployment.json"
 
 POLL_INTERVAL = 10_000
 POLL_RETRIES = 60
@@ -24,18 +32,31 @@ POLL_RETRIES = 60
 ADDRESS_VALUE = re.compile(r"0x[0-9a-fA-F]{40}")
 
 
-def load_account():
-    raw = os.environ.get("GENLAYER_PRIVATE_KEY", "").strip()
-    if not raw:
-        raise SystemExit(
-            "[deploy] set GENLAYER_PRIVATE_KEY to the key that will own the contract"
-        )
-    if not raw.startswith("0x"):
-        raw = "0x" + raw
+def recorded() -> dict:
+    if not DEPLOYMENT_PATH.exists():
+        return {}
     try:
-        return Account.from_key(raw)
-    except Exception as error:
-        raise SystemExit(f"[deploy] GENLAYER_PRIVATE_KEY is not a valid key: {error}")
+        payload = json.loads(DEPLOYMENT_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def write_deployment(address: str, revision: str) -> None:
+    DEPLOYMENT_PATH.write_text(
+        json.dumps(
+            {
+                "contract": "Vow",
+                "network": "GenLayer Studio (61999)",
+                "address": address,
+                "revision": revision,
+                "explorer": f"https://explorer-studio.genlayer.com/address/{address}",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def find_address(receipt) -> str:
@@ -67,11 +88,26 @@ def execution_succeeded(receipt) -> bool:
 
 
 def main() -> int:
-    account = load_account()
-    client = create_client(studionet, account=account)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force", action="store_true", help="redeploy even when this revision is recorded"
+    )
+    args = parser.parse_args()
 
     code = CONTRACT_PATH.read_text(encoding="utf-8")
     revision = hashlib.sha256(code.encode("utf-8")).hexdigest()[:12]
+    previous = recorded()
+
+    if not args.force and previous.get("address") and previous.get("revision") == revision:
+        print(
+            f"[deploy] deployment.json already points at {previous['address']} "
+            f"at revision {revision}; reusing it"
+        )
+        print(f"[deploy] explorer: {previous.get('explorer', '')}")
+        return 0
+
+    account = load_account("tester1")
+    client = create_client(studionet, account=account)
 
     print(f"[deploy] deploying Vow from {account.address} (revision {revision})")
     tx_hash = client.deploy_contract(code=code, account=account)
@@ -87,6 +123,7 @@ def main() -> int:
     if not address:
         raise SystemExit(f"[deploy] no contract address in the receipt: {receipt}")
 
+    write_deployment(address, revision)
     print(f"[deploy] Vow is at {address}")
     print(f"[deploy] explorer: https://explorer-studio.genlayer.com/address/{address}")
     return 0

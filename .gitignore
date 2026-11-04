@@ -7,7 +7,6 @@ __pycache__/
 .env.*
 !.env.example
 .DS_Store
-deployments*.json
 
 # Key material — never commit a wallet, keystore or private key.
 # A committed key is a leaked key: it stays in the git history even after the

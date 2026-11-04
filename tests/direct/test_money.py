@@ -22,7 +22,7 @@ def _vow(direct_vm, direct_deploy, direct_owner, direct_alice, days=7):
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
     vow_id = contract.make_vow(
-        PROMISE, EVIDENCE_URL, CRITERIA, days, direct_alice, "ref-1"
+        PROMISE, EVIDENCE_URL, CRITERIA, days * 86400, direct_alice, "ref-1"
     )
     return contract, vow_id
 

@@ -28,6 +28,18 @@ service. The adversary you are posting against is yourself.
 
 ---
 
+## Live on GenLayer Studio
+
+`deployment.json` is the single source of truth for the deployed address: the
+**Deploy Contract** workflow deploys once, writes it, and commits it back to
+`main`. Until that file exists, nothing is deployed.
+
+| | |
+|---|---|
+| **Network** | GenLayer Studio — chainId `61999` (`0xf22f`), test GEN only |
+| **Deployer** | `scripts/deploy.py`, run by the **Deploy Contract** workflow with the tester1 wallet |
+| **Evidence** | [Actions](https://github.com/weels007/genlayer-vow/actions) — the direct suite, the Studio suite, and every deployment |
+
 ## The idea
 
 Every accountability product today needs somebody to be believed: a platform
@@ -133,7 +145,7 @@ Invariant: `total_in == total_out + locked_total`, credits included.
 
 | Method | Who | Purpose |
 |---|---|---|
-| `make_vow(promise, evidence_url, criteria, deadline_days, beneficiary, vow_ref)` | anyone | publish a promise; freezes text, source and deadline |
+| `make_vow(promise, evidence_url, criteria, deadline_seconds, beneficiary, vow_ref)` | anyone | publish a promise; freezes text, source and deadline (60 s … 365 d) |
 | `stake_vow(vow_id)` · payable | the promiser | add GEN behind the word; never reverts once value is attached |
 | `withdraw_credit()` | anyone with a credit | take back money that arrived for a refused stake |
 | `settle(vow_id)` | anyone, after the deadline | ask the committee; moves the stake with the verdict |
@@ -183,8 +195,9 @@ Known limits, stated plainly:
   was kept against a named page; it does not interpret law, and it should not be
   used as legal or compliance advice.
 - `reason` is descriptive and never fed back into a decision.
-- Direct-mode tests do not execute external transfers, so the payout paths need a
-  Studio run (or the integration suite) to be exercised end to end.
+- Direct-mode tests do not execute external transfers, so the Studio suite is what
+  exercises the payout paths end to end (`abandon` and `withdraw_credit` pay out,
+  and a resolved `settle` moves the stake).
 
 ## Built from the GenLayer docs
 
@@ -209,38 +222,54 @@ pip install -r requirements.txt
 
 genvm-lint check contracts/Vow.py   # forbidden imports, storage, nondet misuse
 pytest tests/direct -v              # the whole suite, in memory, milliseconds
+pytest tests/integration -v -s      # one deploy, every method, live consensus
 
-GENLAYER_PRIVATE_KEY=0x... python scripts/deploy.py   # deploy once, print the address
+python scripts/deploy.py            # deploy once, record deployment.json
 ```
 
 The direct suite runs without a network: the web page and the model are mocked,
 and `direct_vm.warp()` moves the clock past the deadline.
 
+The Studio suite needs the two test wallets. Locally, drop `tester1-keystore.json`
++ `tester1.password` and the `tester2` pair into `tests/` (never tracked). In CI it
+reads them from four repository secrets instead:
+
+| Secret | Value |
+|---|---|
+| `VOW_TESTER1_KEYSTORE` | `tester1-keystore.json`, raw JSON or base64 |
+| `VOW_TESTER1_PASSWORD` | the keystore password |
+| `VOW_TESTER2_KEYSTORE` | `tester2-keystore.json`, raw JSON or base64 |
+| `VOW_TESTER2_PASSWORD` | the keystore password |
+
+The same pair covers the deploy workflow: tester1 signs and owns the contract,
+tester2 is the beneficiary and the stranger in the adversarial checks.
+
 ## Status
 
-The contract and its direct suite live in this repository. CI runs `genvm-lint`
-and `pytest tests/direct` on every push: [Actions](https://github.com/weels007/genlayer-vow/actions).
+- **Direct suite** — `pytest tests/direct`, no network, runs in CI on every push.
+- **Studio suite** — `pytest tests/integration`, deploys once and drives every
+  public method on studionet: the registry guards, the stakes and credits, the real
+  payouts, `settle` against a live page with a live committee, the governor, and
+  the refusals that matter.
+- **Deploy** — **Deploy Contract** deploys once and commits `deployment.json`; a
+  push that does not change the contract reuses the recorded address.
 
-Next steps, in order:
-
-1. **Deploy to Studio.** `GENLAYER_PRIVATE_KEY=0x... python scripts/deploy.py`
-   prints the address and its explorer link; the address belongs at the top of
-   this README once it exists.
-2. **Studio suite.** The payout paths — `KEPT` returning the stake, `BROKEN`
-   paying the beneficiary, the settler bounty — are exactly what direct mode
-   cannot execute. An integration suite against studionet is what closes that
-   gap.
-3. **Console.** A wall of vows with a stake button and a settle button, reading
-   `get_vows()` and `get_standing()`.
+What is not built yet is the console: a wall of vows with a stake button and a
+settle button, reading `get_vows()` and `get_standing()`.
 
 ## Layout
 
 ```text
-contracts/Vow.py              the Intelligent Contract
-tests/direct/                 creation, settlement, consensus, money, views
-scripts/deploy.py             the deployer; reads GENLAYER_PRIVATE_KEY
-.github/workflows/ci.yml      genvm-lint + the direct suite
-gltest.config.yaml            Studio / localnet targets for integration runs
+contracts/Vow.py                 the Intelligent Contract
+tests/direct/                    creation, settlement, consensus, money, views
+tests/integration/               the studionet suite: every method, live
+scripts/deploy.py                deploys once, records deployment.json
+scripts/wallet.py                keystores from tests/ or from VOW_* secrets
+deployment.json                  the deployed address (written by the workflow)
+.github/workflows/ci.yml         genvm-lint + the direct suite
+.github/workflows/integration.yml  the studionet suite
+.github/workflows/deploy-contract.yml  one deploy, address committed back
+gltest.config.yaml               Studio / localnet targets for gltest runs
 ```
 
 ## License

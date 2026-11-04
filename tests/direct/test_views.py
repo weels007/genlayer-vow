@@ -12,6 +12,13 @@ EVIDENCE_BODY = (
 )
 QUOTE = "On 3 March the team published v1.0.0 to production."
 
+DAY = 86400
+
+
+def _days(count):
+    """Deadlines are seconds on-chain; the tests still read in days."""
+    return count * DAY
+
 
 def _hex(addr):
     """Address fixtures arrive as bytes or Address depending on the SDK load."""
@@ -55,8 +62,8 @@ def test_vows_are_listed(direct_vm, direct_deploy, direct_owner, direct_alice):
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
 
-    contract.make_vow(PROMISE, EVIDENCE_URL, "", 3, direct_alice, "ref-a")
-    contract.make_vow(PROMISE, EVIDENCE_URL, "", 3, direct_alice, "ref-b")
+    contract.make_vow(PROMISE, EVIDENCE_URL, "", _days(3), direct_alice, "ref-a")
+    contract.make_vow(PROMISE, EVIDENCE_URL, "", _days(3), direct_alice, "ref-b")
 
     vows = contract.get_vows()
     assert len(vows) == 2
@@ -71,10 +78,10 @@ def test_summary_counts_outcomes(
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
 
-    kept_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, 1, direct_alice, "ref-1")
-    broken_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, 1, direct_alice, "ref-2")
+    kept_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, _days(1), direct_alice, "ref-1")
+    broken_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, _days(1), direct_alice, "ref-2")
     abandoned_vow = contract.make_vow(
-        PROMISE, EVIDENCE_URL, CRITERIA, 30, direct_alice, "ref-3"
+        PROMISE, EVIDENCE_URL, CRITERIA, _days(30), direct_alice, "ref-3"
     )
 
     direct_vm.warp("2025-01-03T00:00:00Z")
@@ -105,10 +112,10 @@ def test_standing_needs_a_track_record(
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
 
-    kept_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, 1, direct_alice, "ref-1")
-    broken_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, 1, direct_alice, "ref-2")
+    kept_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, _days(1), direct_alice, "ref-1")
+    broken_vow = contract.make_vow(PROMISE, EVIDENCE_URL, CRITERIA, _days(1), direct_alice, "ref-2")
     abandoned_vow = contract.make_vow(
-        PROMISE, EVIDENCE_URL, CRITERIA, 30, direct_alice, "ref-3"
+        PROMISE, EVIDENCE_URL, CRITERIA, _days(30), direct_alice, "ref-3"
     )
 
     direct_vm.warp("2025-01-03T00:00:00Z")
@@ -156,8 +163,8 @@ def test_rules_view_reports_the_bounds(direct_deploy):
     contract = direct_deploy("contracts/Vow.py")
 
     rules = contract.get_rules()
-    assert rules["min_deadline_days"] == 1
-    assert rules["max_deadline_days"] == 365
+    assert rules["min_deadline_seconds"] == 60
+    assert rules["max_deadline_seconds"] == 365 * 86400
     assert rules["settle_bounty_bps"] == 200
     assert rules["max_active_per_promiser"] == 20
     assert rules["max_settlement_attempts"] == 5
@@ -171,7 +178,7 @@ def test_is_due_follows_the_clock(
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
 
-    vow_id = contract.make_vow(PROMISE, EVIDENCE_URL, "", 2, direct_alice, "ref-1")
+    vow_id = contract.make_vow(PROMISE, EVIDENCE_URL, "", _days(2), direct_alice, "ref-1")
 
     assert contract.is_due(vow_id) is False
 

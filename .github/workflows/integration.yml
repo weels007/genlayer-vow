@@ -1,0 +1,50 @@
+name: Integration (studionet)
+
+# Real-network check: deploys Vow to studionet and drives every public method,
+# including the refusals, the money paths and the settlement that costs a live web
+# fetch and live LLM consensus. It runs when the contract, the suite, the wallet
+# loader or the deploy script changes, and on demand.
+#
+# Needs four repository secrets, taken from the throwaway Studio wallets in the
+# private wallets repository:
+#   VOW_TESTER1_KEYSTORE  VOW_TESTER1_PASSWORD
+#   VOW_TESTER2_KEYSTORE  VOW_TESTER2_PASSWORD
+# The keystores are pasted as JSON (raw or base64); no key is ever committed.
+
+on:
+  push:
+    paths:
+      - "contracts/**"
+      - "tests/integration/**"
+      - "scripts/**"
+      - "requirements.txt"
+      - ".github/workflows/integration.yml"
+  workflow_dispatch:
+
+jobs:
+  studionet:
+    name: Studio-mode tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Check the wallet secrets
+        id: secrets
+        run: |
+          if [ -z "${{ secrets.VOW_TESTER1_KEYSTORE }}" ] || [ -z "${{ secrets.VOW_TESTER2_KEYSTORE }}" ]; then
+            echo "::notice title=Studio suite skipped::Add VOW_TESTER1_KEYSTORE/PASSWORD and VOW_TESTER2_KEYSTORE/PASSWORD to run the studionet suite."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: pytest tests/integration -v -s
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          VOW_TESTER1_KEYSTORE: ${{ secrets.VOW_TESTER1_KEYSTORE }}
+          VOW_TESTER1_PASSWORD: ${{ secrets.VOW_TESTER1_PASSWORD }}
+          VOW_TESTER2_KEYSTORE: ${{ secrets.VOW_TESTER2_KEYSTORE }}
+          VOW_TESTER2_PASSWORD: ${{ secrets.VOW_TESTER2_PASSWORD }}

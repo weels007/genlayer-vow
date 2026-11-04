@@ -37,7 +37,7 @@ def _settled(direct_vm, direct_deploy, direct_owner, direct_alice, verdict="KEPT
     contract = direct_deploy("contracts/Vow.py")
     direct_vm.sender = direct_owner
     vow_id = contract.make_vow(
-        PROMISE, EVIDENCE_URL, CRITERIA, 1, direct_alice, "ref-1"
+        PROMISE, EVIDENCE_URL, CRITERIA, 86400, direct_alice, "ref-1"
     )
     direct_vm.warp("2025-01-03T00:00:00Z")
 
