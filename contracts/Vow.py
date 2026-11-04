@@ -138,18 +138,19 @@ class Standing:
 def _now_ts() -> int:
     """Transaction timestamp in seconds. Deterministic across validators.
 
-    The message clock is the transaction's own timestamp, so every validator
-    derives the same deadline and the same expiry check. The wall clock is only a
-    fallback for a harness that does not expose one.
+    GenVM pins the contract's clock to the transaction timestamp, and the direct
+    harness patches it to the warped time, so `datetime.now` here is the
+    transaction's own clock — never the node's wall clock. The raw message field
+    is a fallback for a host that does not provide the patched module.
     """
+    try:
+        return int(datetime.now(timezone.utc).timestamp())
+    except Exception:
+        pass
     try:
         raw = gl.message_raw["datetime"]
         parsed = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
         return int(parsed.timestamp())
-    except Exception:
-        pass
-    try:
-        return int(datetime.now(timezone.utc).timestamp())
     except Exception:
         return 0
 
