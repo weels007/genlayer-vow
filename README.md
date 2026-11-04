@@ -41,9 +41,9 @@ with every hash printed. That is also how the wall gets its first entry.
 
 | | |
 |---|---|
+| **Contract** | [`0xFAB986cDcd2dBD1B7E6f6Dc1137e3B590Af28cb1`](https://explorer-studio.genlayer.com/address/0xFAB986cDcd2dBD1B7E6f6Dc1137e3B590Af28cb1) |
 | **Network** | GenLayer Studio — chainId `61999` (`0xf22f`), test GEN only |
-| **Deployer** | `scripts/deploy.py`, run by the **Deploy Contract** workflow with the tester1 wallet |
-| **Evidence** | [Actions](https://github.com/weels007/genlayer-vow/actions) — the direct suite, the Studio suite, and every deployment |
+| **Evidence** | [Actions](https://github.com/weels007/genlayer-vow/actions) — the direct suite, the Studio suite, the end-to-end run and every deployment |
 
 ## The idea
 
@@ -272,19 +272,10 @@ published contract through the whole loop — publish, stake, settle, payout —
 plus the refusals that protect it. It never deploys anything, and every
 assertion is a delta, so it can be re-run against the same contract.
 
-The Studio suite needs the two test wallets. Locally, drop `tester1-keystore.json`
-+ `tester1.password` and the `tester2` pair into `tests/` (never tracked). In CI it
-reads them from four repository secrets instead:
-
-| Secret | Value |
-|---|---|
-| `VOW_TESTER1_KEYSTORE` | `tester1-keystore.json`, raw JSON or base64 |
-| `VOW_TESTER1_PASSWORD` | the keystore password |
-| `VOW_TESTER2_KEYSTORE` | `tester2-keystore.json`, raw JSON or base64 |
-| `VOW_TESTER2_PASSWORD` | the keystore password |
-
-The same pair covers the deploy workflow: tester1 signs and owns the contract,
-tester2 is the beneficiary and the stranger in the adversarial checks.
+The live suites (Studio, end-to-end, deploy) sign with a throwaway Studio account
+that the repository keeps in Actions secrets, so no key material is committed.
+Locally they read `tests/<name>-keystore.json` and `tests/<name>.password`, which
+the `.gitignore` keeps out of the repository.
 
 ## Status
 
@@ -311,7 +302,7 @@ tests/integration/               the studionet suite: every method, live
 tests/e2e/                       the deployed contract, end to end
 scripts/deploy.py                deploys once, records deployment.json
 scripts/smoke.py                 drives the pinned contract, prints every hash
-scripts/wallet.py                keystores from tests/ or from VOW_* secrets
+scripts/wallet.py                keystores from tests/ or a repository secret
 deployment.json                  the deployed address (written by the workflow)
 .github/workflows/ci.yml         genvm-lint + the direct suite
 .github/workflows/integration.yml  the studionet suite
