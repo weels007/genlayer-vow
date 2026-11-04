@@ -7,6 +7,15 @@ name: Wallet Smoke
 
 on:
   workflow_dispatch:
+
+  # A deploy commits deployment.json with the workflow's own GITHUB_TOKEN, and a
+  # push made by that token never starts another workflow. workflow_run is the
+  # supported way to chain them, so a green deploy always drives the address it
+  # just recorded.
+  workflow_run:
+    workflows: ["Deploy Contract"]
+    types: [completed]
+
   push:
     paths:
       - "deployment.json"
@@ -20,6 +29,7 @@ concurrency:
 jobs:
   smoke:
     name: Drive the deployed contract
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
