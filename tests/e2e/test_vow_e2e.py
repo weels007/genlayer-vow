@@ -131,7 +131,7 @@ def _expect_ok(client, account, contract, method, args=None, value=0, verify=Non
     result = None
     for attempt in range(3):
         result = _attempt(client, account, contract, method, args, value)
-        if _execution_succeeded(result):
+        if _succeeded(result):
             return result
         if verify is not None and verify():
             return result
