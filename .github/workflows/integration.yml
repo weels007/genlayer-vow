@@ -18,8 +18,15 @@ on:
       - "tests/integration/**"
       - "scripts/**"
       - "requirements.txt"
+      - "deployment.json"
       - ".github/workflows/integration.yml"
   workflow_dispatch:
+
+# A live suite costs real web fetches and live consensus. Two of them at once
+# would only interleave their waits and their rate limits.
+concurrency:
+  group: integration
+  cancel-in-progress: false
 
 jobs:
   studionet:

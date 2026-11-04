@@ -123,6 +123,19 @@ def main() -> int:
     if not address:
         raise SystemExit(f"[deploy] no contract address in the receipt: {receipt}")
 
+    # An address in a receipt is not proof of a contract: read the owner back
+    # before recording anything, so deployment.json never points at a dud.
+    try:
+        owner = client.read_contract(address, "get_owner")
+    except Exception as error:
+        raise SystemExit(f"[deploy] the deployed contract does not answer: {error}")
+
+    if str(owner).lower().replace("0x", "") != account.address.lower().replace("0x", ""):
+        raise SystemExit(
+            f"[deploy] the contract at {address} reports owner {owner}, "
+            f"not {account.address}"
+        )
+
     write_deployment(address, revision)
     print(f"[deploy] Vow is at {address}")
     print(f"[deploy] explorer: https://explorer-studio.genlayer.com/address/{address}")
