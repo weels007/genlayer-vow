@@ -1,0 +1,47 @@
+name: Wallet Smoke
+
+# Drives the PINNED contract in deployment.json with the two Studio wallets: one
+# vow published, staked and abandoned, so the payout path runs against the address
+# the README points at. The Studio suite never touches that address — it deploys
+# its own copy — so this is the run that leaves real transactions on the wall.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "deployment.json"
+      - "scripts/smoke.py"
+      - ".github/workflows/smoke.yml"
+
+concurrency:
+  group: smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    name: Drive the deployed contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Check the wallet secrets
+        id: secrets
+        run: |
+          if [ -z "${{ secrets.VOW_TESTER1_KEYSTORE }}" ] || [ -z "${{ secrets.VOW_TESTER2_KEYSTORE }}" ]; then
+            echo "::notice title=Smoke skipped::Add VOW_TESTER1_KEYSTORE/PASSWORD and VOW_TESTER2_KEYSTORE/PASSWORD to drive the deployed contract."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Smoke
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          VOW_TESTER1_KEYSTORE: ${{ secrets.VOW_TESTER1_KEYSTORE }}
+          VOW_TESTER1_PASSWORD: ${{ secrets.VOW_TESTER1_PASSWORD }}
+          VOW_TESTER2_KEYSTORE: ${{ secrets.VOW_TESTER2_KEYSTORE }}
+          VOW_TESTER2_PASSWORD: ${{ secrets.VOW_TESTER2_PASSWORD }}
+        run: python scripts/smoke.py

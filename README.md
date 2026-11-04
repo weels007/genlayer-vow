@@ -34,6 +34,11 @@ service. The adversary you are posting against is yourself.
 **Deploy Contract** workflow deploys once, writes it, and commits it back to
 `main`. Until that file exists, nothing is deployed.
 
+The Studio suite deploys its own copy of the contract, so its twenty-odd live
+transactions never touch the published one. **Wallet Smoke** is the run that
+drives the address in `deployment.json`: one vow published, staked and abandoned,
+with every hash printed. That is also how the wall gets its first entry.
+
 | | |
 |---|---|
 | **Network** | GenLayer Studio — chainId `61999` (`0xf22f`), test GEN only |

@@ -433,6 +433,8 @@ def test_11_stranger_cannot_abandon(client, stranger, contract):
 def test_12_abandon_pays_the_beneficiary(client, account, contract):
     vow_id = _vow_ids(client, contract)[0]
     before = _balance(client, contract)
+    locked_before = int(_ledger(client, contract)["locked_total"])
+    out_before = int(_ledger(client, contract)["total_out"])
 
     _expect_ok(client, account, contract, "abandon", [vow_id])
 
@@ -443,9 +445,11 @@ def test_12_abandon_pays_the_beneficiary(client, account, contract):
     after = _wait_balance_drop(client, contract, before, STAKE)
     assert before - after == STAKE
 
+    # Ledger assertions are deltas: an earlier test already paid out the
+    # stranger's withdrawn credit, so the totals do not start at zero.
     ledger = _ledger(client, contract)
-    assert int(ledger["total_out"]) == STAKE
-    assert int(ledger["locked_total"]) == 0
+    assert int(ledger["locked_total"]) == locked_before - STAKE
+    assert int(ledger["total_out"]) == out_before + STAKE
 
     standing = _read(client, contract, "get_standing", [account.address])
     assert int(standing["abandoned"]) == 1
