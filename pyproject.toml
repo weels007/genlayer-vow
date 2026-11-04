@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+testpaths = ["tests/direct"]
+markers = [
+    "integration: tests requiring a GenLayer environment (run with gltest, not pytest)",
+]

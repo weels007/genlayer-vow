@@ -1,0 +1,19 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.env
+.env.*
+!.env.example
+.DS_Store
+deployments*.json
+
+# Key material — never commit a wallet, keystore or private key.
+# A committed key is a leaked key: it stays in the git history even after the
+# file is deleted. Use repository secrets for CI, or .env for local runs.
+*.pem
+*.key
+keystore*.json
+*-keystore.json
+*.password
