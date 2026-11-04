@@ -1,0 +1,60 @@
+name: E2E (deployed contract)
+
+# End-to-end against the PINNED contract in deployment.json: publish, stake,
+# settle with a live provider, and the money follows the verdict — plus the
+# refusals that protect it (double submit, bad evidence URL, zero stake, a
+# stranger trying to abandon someone else's vow).
+#
+# The Studio suite deploys its own copy; the smoke stops at abandon. This is the
+# only run that takes the published contract through the whole loop.
+
+on:
+  workflow_dispatch:
+
+  # A deploy commits deployment.json with the workflow token, and a push made
+  # with that token never starts another workflow. workflow_run is the supported
+  # chain.
+  workflow_run:
+    workflows: ["Deploy Contract"]
+    types: [completed]
+
+  push:
+    paths:
+      - "tests/e2e/**"
+      - "scripts/wallet.py"
+      - "deployment.json"
+      - ".github/workflows/e2e.yml"
+
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: Publish, stake, settle on the deployed contract
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+
+      - name: Check the wallet secrets
+        id: secrets
+        run: |
+          if [ -z "${{ secrets.VOW_TESTER1_KEYSTORE }}" ] || [ -z "${{ secrets.VOW_TESTER2_KEYSTORE }}" ]; then
+            echo "::notice title=E2E skipped::Add VOW_TESTER1_KEYSTORE/PASSWORD and VOW_TESTER2_KEYSTORE/PASSWORD to drive the deployed contract."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: End to end
+        if: steps.secrets.outputs.skip != 'true'
+        env:
+          VOW_TESTER1_KEYSTORE: ${{ secrets.VOW_TESTER1_KEYSTORE }}
+          VOW_TESTER1_PASSWORD: ${{ secrets.VOW_TESTER1_PASSWORD }}
+          VOW_TESTER2_KEYSTORE: ${{ secrets.VOW_TESTER2_KEYSTORE }}
+          VOW_TESTER2_PASSWORD: ${{ secrets.VOW_TESTER2_PASSWORD }}
+        run: pytest tests/e2e -v -s

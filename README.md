@@ -259,12 +259,18 @@ pip install -r requirements.txt
 genvm-lint check contracts/Vow.py   # forbidden imports, storage, nondet misuse
 pytest tests/direct -v              # the whole suite, in memory, milliseconds
 pytest tests/integration -v -s      # one deploy, every method, live consensus
+pytest tests/e2e -v -s              # the deployed contract, publish → settle
 
 python scripts/deploy.py            # deploy once, record deployment.json
 ```
 
 The direct suite runs without a network: the web page and the model are mocked,
 and `direct_vm.warp()` moves the clock past the deadline.
+
+The end-to-end suite reads the address from `deployment.json` and drives the
+published contract through the whole loop — publish, stake, settle, payout —
+plus the refusals that protect it. It never deploys anything, and every
+assertion is a delta, so it can be re-run against the same contract.
 
 The Studio suite needs the two test wallets. Locally, drop `tester1-keystore.json`
 + `tester1.password` and the `tester2` pair into `tests/` (never tracked). In CI it
@@ -287,6 +293,9 @@ tester2 is the beneficiary and the stranger in the adversarial checks.
   public method on studionet: the registry guards, the stakes and credits, the real
   payouts, `settle` against a live page with a live committee, the governor, and
   the refusals that matter.
+- **End to end** — `pytest tests/e2e`, runs against the address in
+  `deployment.json`: publish, stake, settle and watch the stake move with the
+  verdict, plus double submit and bad evidence refused on the published contract.
 - **Deploy** — **Deploy Contract** deploys once and commits `deployment.json`; a
   push that does not change the contract reuses the recorded address.
 
@@ -299,11 +308,15 @@ settle button, reading `get_vows()` and `get_standing()`.
 contracts/Vow.py                 the Intelligent Contract
 tests/direct/                    creation, settlement, consensus, money, views
 tests/integration/               the studionet suite: every method, live
+tests/e2e/                       the deployed contract, end to end
 scripts/deploy.py                deploys once, records deployment.json
+scripts/smoke.py                 drives the pinned contract, prints every hash
 scripts/wallet.py                keystores from tests/ or from VOW_* secrets
 deployment.json                  the deployed address (written by the workflow)
 .github/workflows/ci.yml         genvm-lint + the direct suite
 .github/workflows/integration.yml  the studionet suite
+.github/workflows/e2e.yml        publish → stake → settle on the deployed contract
+.github/workflows/smoke.yml      one staked, abandoned vow on the deployed contract
 .github/workflows/deploy-contract.yml  one deploy, address committed back
 gltest.config.yaml               Studio / localnet targets for gltest runs
 ```
