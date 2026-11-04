@@ -14,9 +14,14 @@ service. The adversary you are posting against is yourself.
 <div align="center">
 
 <p>
+  <a href="https://github.com/weels007/genlayer-vow/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/weels007/genlayer-vow/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/weels007/genlayer-vow"><img alt="Repository" src="https://img.shields.io/badge/github-weels007%2Fgenlayer--vow-24292f"></a>
+</p>
+
+<p>
   <img alt="GenLayer Studio 61999" src="https://img.shields.io/badge/network-GenLayer%20Studio%2061999-e6c98b">
   <img alt="Python Intelligent Contract" src="https://img.shields.io/badge/contract-Python%20Intelligent%20Contract-957bff">
-  <img alt="Direct mode tests" src="https://img.shields.io/badge/tests-direct%20mode-d9ff43">
+  <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-d9ff43">
 </p>
 
 </div>
@@ -210,6 +215,23 @@ GENLAYER_PRIVATE_KEY=0x... python scripts/deploy.py   # deploy once, print the a
 
 The direct suite runs without a network: the web page and the model are mocked,
 and `direct_vm.warp()` moves the clock past the deadline.
+
+## Status
+
+The contract and its direct suite live in this repository. CI runs `genvm-lint`
+and `pytest tests/direct` on every push: [Actions](https://github.com/weels007/genlayer-vow/actions).
+
+Next steps, in order:
+
+1. **Deploy to Studio.** `GENLAYER_PRIVATE_KEY=0x... python scripts/deploy.py`
+   prints the address and its explorer link; the address belongs at the top of
+   this README once it exists.
+2. **Studio suite.** The payout paths — `KEPT` returning the stake, `BROKEN`
+   paying the beneficiary, the settler bounty — are exactly what direct mode
+   cannot execute. An integration suite against studionet is what closes that
+   gap.
+3. **Console.** A wall of vows with a stake button and a settle button, reading
+   `get_vows()` and `get_standing()`.
 
 ## Layout
 
