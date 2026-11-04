@@ -149,7 +149,21 @@ def _expect_denied(client, account, contract, method, args=None, value=0):
 
 
 def _read(client, contract, method, args=None):
-    return client.read_contract(contract, method, args=args or [])
+    """Read a view, retrying a provider hiccup.
+
+    A 502 from the RPC endpoint is not an answer from the contract. Retrying
+    keeps the suite from going red on weather; a real failure still raises.
+    """
+    last = None
+    for attempt in range(3):
+        try:
+            return client.read_contract(contract, method, args=args or [])
+        except Exception as error:
+            last = error
+            if attempt < 2:
+                print(f"  {method} read failed, retrying: {error}")
+                time.sleep(RETRY_PAUSE)
+    raise last
 
 
 def _vow_ids(client, contract):
